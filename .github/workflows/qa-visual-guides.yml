@@ -1,0 +1,141 @@
+name: Visual guide QA
+
+on:
+  push:
+    branches:
+      - qa-visual-guides
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Serve app
+        run: |
+          python3 -m http.server 4173 >/tmp/baywide-server.log 2>&1 &
+          sleep 2
+      - name: Explore critical workflows
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+
+          (async() => {
+            const browser = await chromium.launch({headless:true});
+            const desktop = await browser.newPage({viewport:{width:1440,height:1000}});
+            const mobile = await browser.newPage({viewport:{width:390,height:844}, isMobile:true});
+            const results = [];
+            const check = (name, ok, detail='') => { results.push({name,ok,detail}); console.log(`${ok?'PASS':'FAIL'} | ${name}${detail?' | '+detail:''}`); };
+            const hasText = async (page, text) => (await page.locator('body').innerText()).toLowerCase().includes(text.toLowerCase());
+            const clickText = async (page, text) => {
+              const candidates = [page.getByRole('button',{name:new RegExp(text,'i')}), page.getByText(new RegExp(text,'i'))];
+              for (const c of candidates) {
+                try { if (await c.count()) { await c.first().click({timeout:2500}); await page.waitForTimeout(350); return true; } } catch(e) {}
+              }
+              return false;
+            };
+            const snapshot = async (page, name) => {
+              fs.mkdirSync('qa-screens',{recursive:true});
+              await page.screenshot({path:`qa-screens/${name}.png`,fullPage:true});
+              const buttons = await page.locator('button').allTextContents().catch(()=>[]);
+              console.log(`SCREEN ${name} BUTTONS:`, JSON.stringify(buttons.slice(0,80)));
+            };
+
+            // Desktop / HQ
+            await desktop.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
+            check('Welcome screen loads', await hasText(desktop,'Welcome back'));
+            await snapshot(desktop,'01-welcome-desktop');
+
+            let hq = await clickText(desktop,'Management');
+            if (!hq) hq = await clickText(desktop,'HQ');
+            check('Management/HQ entry is clickable', hq);
+            await desktop.waitForTimeout(500);
+            check('HQ dashboard opens', (await hasText(desktop,'Dashboard')) && (await hasText(desktop,'Active jobs')));
+            await snapshot(desktop,'02-hq-dashboard');
+
+            // Discover nav labels/titles
+            const navMeta = await desktop.locator('[title], [aria-label]').evaluateAll(els => els.map(e=>({tag:e.tagName,title:e.getAttribute('title'),aria:e.getAttribute('aria-label'),text:(e.textContent||'').trim().slice(0,80)})).filter(x=>x.title||x.aria));
+            console.log('HQ TITLES/ARIA:', JSON.stringify(navMeta.slice(0,140)));
+
+            // Try main named sections by text/title; record whether reachable.
+            for (const section of ['Settings','Quotes','Tendering','Projects','Schedule','Health & Safety','Timesheets','Reports','Invoicing']) {
+              const before = await desktop.locator('body').innerText();
+              const ok = await clickText(desktop, section);
+              if (ok) await desktop.waitForTimeout(300);
+              const after = await desktop.locator('body').innerText();
+              check(`HQ navigation: ${section}`, ok && after !== before, ok ? 'clicked' : 'not found');
+              if (ok) await snapshot(desktop,`hq-${section.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`);
+            }
+
+            // Mobile / Field
+            await mobile.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
+            let field = await clickText(mobile,'Field');
+            if (!field) field = await clickText(mobile,'Crew field app');
+            check('Field entry is clickable', field);
+            await mobile.waitForTimeout(450);
+            check('Field sign-in screen opens', await hasText(mobile,'Sign in to the field app'));
+            await snapshot(mobile,'20-field-sign-in');
+
+            let worker = await clickText(mobile,'Operator #1');
+            check('Worker can be selected', worker);
+            await mobile.waitForTimeout(450);
+            const bodyAfterWorker = await mobile.locator('body').innerText();
+            check('Worker profile opens', bodyAfterWorker.includes('My jobs') && bodyAfterWorker.includes('Daily tasks'));
+            await snapshot(mobile,'21-field-profile');
+
+            let jobs = await clickText(mobile,'My jobs');
+            check('My jobs opens', jobs);
+            await mobile.waitForTimeout(350);
+            check('Assigned job is visible', await hasText(mobile,'101 Example Street'));
+            await snapshot(mobile,'22-my-jobs');
+
+            let job = await clickText(mobile,'101 Example Street');
+            check('Assigned job opens', job);
+            await mobile.waitForTimeout(350);
+            check('Pre-start job gate appears', (await hasText(mobile,'Clock on')) && (await hasText(mobile,'sign the H&S')));
+            await snapshot(mobile,'23-job-gate');
+
+            let clock = await clickText(mobile,'Clock on');
+            check('Clock on works', clock);
+            await mobile.waitForTimeout(350);
+            check('H&S sign-on is next gate', await hasText(mobile,'Create & sign'));
+            await snapshot(mobile,'24-clocked-on');
+
+            let sign = await clickText(mobile,'Create & sign');
+            check('H&S sign-on opens', sign);
+            await mobile.waitForTimeout(350);
+            const safetyBody = await mobile.locator('body').innerText();
+            check('Site safety/SWMS controls load', safetyBody.toLowerCase().includes('site safety') || safetyBody.toLowerCase().includes('swms'));
+            await snapshot(mobile,'25-safety');
+
+            // Do not force a sign if form requirements are unclear; verify key controls exist instead.
+            check('Hazard reporting control exists', (await hasText(mobile,'Report a hazard')) || (await hasText(mobile,'Submit hazard')));
+
+            console.log('\nQA SUMMARY');
+            console.log(JSON.stringify(results,null,2));
+            const failures = results.filter(r=>!r.ok);
+            console.log(`TOTAL ${results.length} | PASS ${results.length-failures.length} | FAIL ${failures.length}`);
+            await browser.close();
+            if (failures.length) process.exitCode = 2;
+          })().catch(e=>{ console.error(e); process.exit(1); });
+          NODE
+      - name: Upload QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baywide-visual-guide-qa
+          path: qa-screens
+          if-no-files-found: ignore
