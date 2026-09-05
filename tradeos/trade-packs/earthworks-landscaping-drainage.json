@@ -1,0 +1,12 @@
+{
+  "id": "earthworks-landscaping-drainage",
+  "name": "Earthworks, Landscaping & Drainage",
+  "description": "Starter pack extracted from the Baywide workflow.",
+  "jobTypes": ["Site cut", "Bulk excavation", "Drainage", "Driveway / access", "Landscaping", "Retaining prep", "Trenching"],
+  "rateCategories": ["Labour", "Excavation", "Plant", "Cartage", "Aggregates", "Drainage", "Landscaping", "Disposal", "Subcontractors"],
+  "progressStages": ["Site setup", "Bulk excavation", "Drainage", "Driveway / access", "Lawn / topsoil", "Garden beds / planting"],
+  "hazards": ["Excavation collapse", "Underground services", "Mobile plant", "Reversing vehicles", "Public interface", "Manual handling", "Noise", "Dust / silica", "Wet ground", "Working near services"],
+  "materials": ["Draincoil", "PVC pipe", "AP40", "GAP20", "Topsoil", "Mulch", "Geotextile", "Concrete", "Timber / retaining materials"],
+  "defaultDocuments": ["Excavation SWMS / JSA", "Plant pre-start", "Underground services check", "Site H&S sign-on", "Daily pre-start"],
+  "terminology": {"project": "Job", "team": "Crew"}
+}
