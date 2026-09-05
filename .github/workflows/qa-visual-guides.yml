@@ -41,16 +41,16 @@ jobs:
             const clickBtn=async(re,n)=>{const b=p.getByRole('button',{name:re}); if(!await b.count()) throw new Error(`Missing button ${re}`); await b.first().click({force:true}); await p.waitForTimeout(500); if(n) await snap(n);};
 
             await p.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
-            await clickBtn(/Field · Mobile/i,'01-field-home');
+            const fieldSwitch=p.locator('button[title="Field app"]');
+            if(!await fieldSwitch.count()) throw new Error('Field app switch missing');
+            await fieldSwitch.first().click({force:true}); await p.waitForTimeout(500); await snap('01-field-home');
             await clickBtn(/^Sign in$/i,'02-sign-in-picker');
             await clickBtn(/Operator #1/i,'03-signed-in');
 
-            // Verify the picker closed and the selected user is active.
             const body3=clean(await p.locator('body').innerText());
             if(/Sign in to the field app/i.test(body3)) throw new Error('Worker picker did not close after selecting Operator #1');
             if(!/Operator #1/i.test(body3)) throw new Error('Operator #1 not active after sign-in');
 
-            // Open the assigned job card before clocking.
             const job=p.locator('button').filter({hasText:'101 Example Street'}).first();
             if(!await job.count()) throw new Error('Assigned job card missing');
             await job.click({force:true}); await p.waitForTimeout(500); await snap('04-job-open-before-clock');
@@ -58,22 +58,18 @@ jobs:
             console.log('JOB_OPEN_HAS_CLOCK=',/Clock (in|on)/i.test(body4));
             console.log('JOB_OPEN_HAS_HS=',/H&S|Safety|sign-on/i.test(body4));
 
-            // Prefer job-level clock button; if absent use the visible Clock in control.
             let clock=p.getByRole('button',{name:/Clock (in|on)/i});
             if(await clock.count()){await clock.first().click({force:true}); await p.waitForTimeout(500); await snap('05-after-clock');}
 
-            // Capture safety/sign-on path.
             for(const re of [/Create & sign/i,/H&S.*sign/i,/Safety/i]){
               const b=p.getByRole('button',{name:re});
               if(await b.count()){await b.first().click({force:true}); await p.waitForTimeout(500); await snap('06-safety-sign-on'); break;}
             }
 
-            // Return to job/work hub using Back if present.
             let back=p.getByRole('button',{name:/Back|Done|Cancel|Close/i});
             if(await back.count()){try{await back.first().click({force:true}); await p.waitForTimeout(400);}catch(e){}}
             await snap('07-work-hub');
 
-            // Capture operational destinations that are currently reachable.
             const targets=[[/Update progress|Progress/i,'08-progress'],[/Photo/i,'09-photos'],[/Variation/i,'10-variation'],[/Material/i,'11-materials'],[/hazard|Safety/i,'12-hazard'],[/task/i,'13-tasks'],[/Progress report/i,'14-progress-report']];
             for(const [re,name] of targets){
               const b=p.getByRole('button',{name:re});
