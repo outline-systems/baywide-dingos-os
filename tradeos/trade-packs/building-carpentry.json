@@ -1,0 +1,12 @@
+{
+  "id": "building-carpentry",
+  "name": "Building & Carpentry",
+  "description": "Starter pack for residential and light-commercial builders and carpentry contractors.",
+  "jobTypes": ["New build", "Renovation", "Extension", "Decking", "Framing", "Cladding", "Fitout", "Maintenance"],
+  "rateCategories": ["Labour", "Preliminaries", "Framing", "Cladding", "Linings", "Fixing", "Decking", "Hardware", "Materials", "Subcontractors"],
+  "progressStages": ["Site setup", "Demolition / enabling", "Foundations interface", "Floor / framing", "Roof framing", "Cladding / envelope", "Linings", "Fitout / finishing", "Defects / handover"],
+  "hazards": ["Working at height", "Power tools", "Temporary works", "Manual handling", "Silica / dust", "Noise", "Falling objects", "Scaffolds / ladders", "Public interface", "Site housekeeping"],
+  "materials": ["Structural timber", "LVL / engineered timber", "Sheet materials", "Cladding", "Fixings", "Hardware", "Insulation", "Linings", "Sealants"],
+  "defaultDocuments": ["Carpentry SWMS / JSA", "Working at height plan", "Tool / equipment pre-start", "Site H&S sign-on", "Daily pre-start"],
+  "terminology": {"project": "Job", "team": "Crew"}
+}
