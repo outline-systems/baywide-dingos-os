@@ -1,0 +1,45 @@
+{
+  "productName": "TradeOS",
+  "market": "New Zealand",
+  "currency": "NZD",
+  "tax": {"name": "GST", "rate": 0.15},
+  "deploymentModel": "isolated-workspace",
+  "backendTarget": "supabase",
+  "pwa": true,
+  "multiTrade": true,
+  "customerBranding": true,
+  "progressClaimsSeparateFromInvoices": true,
+  "integrations": {
+    "googleCalendar": "optional",
+    "xero": "planned-first-accounting-integration",
+    "outlook": "later"
+  },
+  "roles": [
+    "owner_admin",
+    "management_pm",
+    "office_admin",
+    "estimator",
+    "supervisor_foreman",
+    "worker_crew",
+    "read_only_accountant"
+  ],
+  "coreModules": [
+    "dashboard",
+    "contacts",
+    "quotes",
+    "tendering",
+    "projects",
+    "schedule",
+    "crew",
+    "timesheets",
+    "variations",
+    "photos",
+    "progress",
+    "progress_claims",
+    "tax_invoices",
+    "health_safety",
+    "reports",
+    "settings",
+    "documents"
+  ]
+}
