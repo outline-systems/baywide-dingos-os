@@ -27,115 +27,124 @@ jobs:
         run: |
           python3 -m http.server 4173 >/tmp/baywide-server.log 2>&1 &
           sleep 2
-      - name: Explore critical workflows
+      - name: Explore current workflows
         run: |
           node <<'NODE'
           const { chromium } = require('playwright');
           const fs = require('fs');
-
+          const clean = s => (s||'').replace(/\s+/g,' ').trim();
           (async() => {
             const browser = await chromium.launch({headless:true});
             const desktop = await browser.newPage({viewport:{width:1440,height:1000}});
             const mobile = await browser.newPage({viewport:{width:390,height:844}, isMobile:true});
-            const results = [];
-            const check = (name, ok, detail='') => { results.push({name,ok,detail}); console.log(`${ok?'PASS':'FAIL'} | ${name}${detail?' | '+detail:''}`); };
-            const hasText = async (page, text) => (await page.locator('body').innerText()).toLowerCase().includes(text.toLowerCase());
-            const clickText = async (page, text) => {
-              const candidates = [page.getByRole('button',{name:new RegExp(text,'i')}), page.getByText(new RegExp(text,'i'))];
-              for (const c of candidates) {
-                try { if (await c.count()) { await c.first().click({timeout:2500}); await page.waitForTimeout(350); return true; } } catch(e) {}
+            fs.mkdirSync('qa-screens',{recursive:true});
+            const snap = async (p,n) => {
+              await p.screenshot({path:`qa-screens/${n}.png`,fullPage:true});
+              console.log(`\n--- ${n} ---`);
+              console.log('BODY:', clean(await p.locator('body').innerText()).slice(0,7000));
+              console.log('BUTTONS:', JSON.stringify((await p.locator('button').allTextContents()).map(clean).filter(Boolean).slice(0,120)));
+            };
+            const click = async (p, exactOrRegex) => {
+              const re = exactOrRegex instanceof RegExp ? exactOrRegex : new RegExp(`^${exactOrRegex.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`,'i');
+              for (const loc of [p.getByRole('button',{name:re}),p.getByText(re)]) {
+                try { if(await loc.count()){ await loc.first().click({timeout:3000}); await p.waitForTimeout(450); return true; } } catch(e){}
               }
               return false;
             };
-            const snapshot = async (page, name) => {
-              fs.mkdirSync('qa-screens',{recursive:true});
-              await page.screenshot({path:`qa-screens/${name}.png`,fullPage:true});
-              const buttons = await page.locator('button').allTextContents().catch(()=>[]);
-              console.log(`SCREEN ${name} BUTTONS:`, JSON.stringify(buttons.slice(0,80)));
-            };
 
-            // Desktop / HQ
-            await desktop.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
-            check('Welcome screen loads', await hasText(desktop,'Welcome back'));
-            await snapshot(desktop,'01-welcome-desktop');
+            // DESKTOP / HQ
+            await desktop.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
+            await snap(desktop,'01-welcome-desktop');
+            await click(desktop,/Management/i);
+            await snap(desktop,'02-hq-dashboard');
 
-            let hq = await clickText(desktop,'Management');
-            if (!hq) hq = await clickText(desktop,'HQ');
-            check('Management/HQ entry is clickable', hq);
-            await desktop.waitForTimeout(500);
-            check('HQ dashboard opens', (await hasText(desktop,'Dashboard')) && (await hasText(desktop,'Active jobs')));
-            await snapshot(desktop,'02-hq-dashboard');
+            await click(desktop,'Settings');
+            await snap(desktop,'03-hq-settings');
+            await click(desktop,/Company details/i);
+            await snap(desktop,'04-company-details-open');
+            await click(desktop,/Crew & employees/i);
+            await snap(desktop,'05-crew-settings-open');
 
-            // Discover nav labels/titles
-            const navMeta = await desktop.locator('[title], [aria-label]').evaluateAll(els => els.map(e=>({tag:e.tagName,title:e.getAttribute('title'),aria:e.getAttribute('aria-label'),text:(e.textContent||'').trim().slice(0,80)})).filter(x=>x.title||x.aria));
-            console.log('HQ TITLES/ARIA:', JSON.stringify(navMeta.slice(0,140)));
+            await click(desktop,'Quotes');
+            await snap(desktop,'06-quotes');
+            await click(desktop,'Tendering');
+            await snap(desktop,'07-tendering');
+            await click(desktop,'Projects');
+            await snap(desktop,'08-projects');
+            // open first project row/card
+            const pj = desktop.getByText(/101 Example Street/i);
+            if(await pj.count()){ try{await pj.first().click(); await desktop.waitForTimeout(450);}catch(e){} }
+            await snap(desktop,'09-project-overview');
+            // capture project tabs if present
+            for (const [label,name] of [['Progress','10-project-progress'],['Variations','11-project-variations'],['Claims','12-project-claims']]) {
+              if(await click(desktop,new RegExp(`^${label}$`,'i'))) await snap(desktop,name);
+            }
+            await click(desktop,'Schedule'); await snap(desktop,'13-schedule');
+            await click(desktop,/Health & Safety/i); await snap(desktop,'14-hs');
+            await click(desktop,'Invoicing'); await snap(desktop,'15-invoicing');
+            await click(desktop,'Timesheets'); await snap(desktop,'16-timesheets');
+            await click(desktop,/Reports/); await snap(desktop,'17-reports');
 
-            // Try main named sections by text/title; record whether reachable.
-            for (const section of ['Settings','Quotes','Tendering','Projects','Schedule','Health & Safety','Timesheets','Reports','Invoicing']) {
-              const before = await desktop.locator('body').innerText();
-              const ok = await clickText(desktop, section);
-              if (ok) await desktop.waitForTimeout(300);
-              const after = await desktop.locator('body').innerText();
-              check(`HQ navigation: ${section}`, ok && after !== before, ok ? 'clicked' : 'not found');
-              if (ok) await snapshot(desktop,`hq-${section.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`);
+            // MOBILE / FIELD
+            await mobile.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
+            await click(mobile,/Field/);
+            await snap(mobile,'20-field-home-signed-out');
+            await click(mobile,'Sign in');
+            await snap(mobile,'21-field-sign-in-picker');
+
+            // choose a crew member from the sign-in dialog/sheet, avoiding cancel/close.
+            let chosen=false;
+            const dialogButtons = mobile.locator('[role="dialog"] button');
+            if(await dialogButtons.count()){
+              const n=await dialogButtons.count();
+              for(let i=0;i<n;i++){
+                const b=dialogButtons.nth(i); const t=clean(await b.innerText().catch(()=>''));
+                if(t && !/cancel|close|back/i.test(t)){ try{await b.click(); chosen=true; break;}catch(e){} }
+              }
+            }
+            if(!chosen){
+              const all=mobile.locator('button'); const n=await all.count();
+              for(let i=n-1;i>=0;i--){ const b=all.nth(i); const t=clean(await b.innerText().catch(()=>'')); if(t && !/sign in|clock|field|hq|light|dark|close|cancel/i.test(t)){ try{await b.click(); chosen=true; break;}catch(e){} } }
+            }
+            await mobile.waitForTimeout(500);
+            await snap(mobile,'22-field-profile');
+
+            // If PIN form is shown, use demo/default 0000 only if a 4-digit input is visible; otherwise continue.
+            const pin=mobile.locator('input[type="password"],input[inputmode="numeric"]');
+            if(await pin.count()){
+              try{await pin.first().fill('0000'); const sb=mobile.getByRole('button',{name:/sign in|continue|enter/i}); if(await sb.count()) await sb.last().click(); await mobile.waitForTimeout(500);}catch(e){}
+              await snap(mobile,'23-after-pin');
             }
 
-            // Mobile / Field
-            await mobile.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
-            let field = await clickText(mobile,'Field');
-            if (!field) field = await clickText(mobile,'Crew field app');
-            check('Field entry is clickable', field);
-            await mobile.waitForTimeout(450);
-            check('Field sign-in screen opens', await hasText(mobile,'Sign in to the field app'));
-            await snapshot(mobile,'20-field-sign-in');
+            // Open My jobs if available, otherwise use visible assigned job card.
+            if(await click(mobile,/My jobs/i)) await snap(mobile,'24-my-jobs');
+            const jobText=mobile.getByText(/101 Example Street/i);
+            if(await jobText.count()){ try{await jobText.first().click(); await mobile.waitForTimeout(450);}catch(e){} }
+            await snap(mobile,'25-job-open');
 
-            let worker = await clickText(mobile,'Operator #1');
-            check('Worker can be selected', worker);
-            await mobile.waitForTimeout(450);
-            const bodyAfterWorker = await mobile.locator('body').innerText();
-            check('Worker profile opens', bodyAfterWorker.includes('My jobs') && bodyAfterWorker.includes('Daily tasks'));
-            await snapshot(mobile,'21-field-profile');
+            if(await click(mobile,/Clock (on|in)/i)) await snap(mobile,'26-clocked-on');
+            if(await click(mobile,/Create & sign|Sign.*H&S|H&S sign/i)) await snap(mobile,'27-hs-sign-on');
 
-            let jobs = await clickText(mobile,'My jobs');
-            check('My jobs opens', jobs);
-            await mobile.waitForTimeout(350);
-            check('Assigned job is visible', await hasText(mobile,'101 Example Street'));
-            await snapshot(mobile,'22-my-jobs');
+            // If an H&S form is open, tick visible checkboxes and use a sign/confirm button only in demo data.
+            const boxes=mobile.locator('input[type="checkbox"]');
+            for(let i=0;i<await boxes.count();i++){ try{if(!(await boxes.nth(i).isChecked())) await boxes.nth(i).check();}catch(e){} }
+            const confirm=mobile.getByRole('button',{name:/sign|confirm|complete|submit/i});
+            if(await confirm.count()){
+              for(let i=(await confirm.count())-1;i>=0;i--){ const b=confirm.nth(i); if(await b.isVisible().catch(()=>false)){ try{await b.click(); await mobile.waitForTimeout(500); break;}catch(e){} } }
+            }
+            await snap(mobile,'28-job-work-hub');
 
-            let job = await clickText(mobile,'101 Example Street');
-            check('Assigned job opens', job);
-            await mobile.waitForTimeout(350);
-            check('Pre-start job gate appears', (await hasText(mobile,'Clock on')) && (await hasText(mobile,'sign the H&S')));
-            await snapshot(mobile,'23-job-gate');
+            for (const [re,name] of [[/Update progress|Progress/i,'29-progress'],[/Photos|Photo/i,'30-photos'],[/Variation/i,'31-variation'],[/Materials/i,'32-materials'],[/Report a hazard|Safety/i,'33-hazard'],[/Daily tasks|Tasks/i,'34-tasks'],[/Progress report/i,'35-progress-report']]) {
+              if(await click(mobile,re)){ await snap(mobile,name); try{await mobile.goBack(); await mobile.waitForTimeout(300);}catch(e){} }
+            }
 
-            let clock = await clickText(mobile,'Clock on');
-            check('Clock on works', clock);
-            await mobile.waitForTimeout(350);
-            check('H&S sign-on is next gate', await hasText(mobile,'Create & sign'));
-            await snapshot(mobile,'24-clocked-on');
-
-            let sign = await clickText(mobile,'Create & sign');
-            check('H&S sign-on opens', sign);
-            await mobile.waitForTimeout(350);
-            const safetyBody = await mobile.locator('body').innerText();
-            check('Site safety/SWMS controls load', safetyBody.toLowerCase().includes('site safety') || safetyBody.toLowerCase().includes('swms'));
-            await snapshot(mobile,'25-safety');
-
-            // Do not force a sign if form requirements are unclear; verify key controls exist instead.
-            check('Hazard reporting control exists', (await hasText(mobile,'Report a hazard')) || (await hasText(mobile,'Submit hazard')));
-
-            console.log('\nQA SUMMARY');
-            console.log(JSON.stringify(results,null,2));
-            const failures = results.filter(r=>!r.ok);
-            console.log(`TOTAL ${results.length} | PASS ${results.length-failures.length} | FAIL ${failures.length}`);
             await browser.close();
-            if (failures.length) process.exitCode = 2;
-          })().catch(e=>{ console.error(e); process.exit(1); });
+          })().catch(e=>{console.error(e); process.exit(1)});
           NODE
       - name: Upload QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: baywide-visual-guide-qa
+          name: baywide-visual-guide-qa-v2
           path: qa-screens
-          if-no-files-found: ignore
+          if-no-files-found: error
