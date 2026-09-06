@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tradeos.local/trade-pack.schema.json",
+  "title": "TradeOS Trade Pack",
+  "type": "object",
+  "required": ["id", "name", "jobTypes", "rateCategories", "progressStages", "hazards", "materials"],
+  "properties": {
+    "id": {"type": "string"},
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "jobTypes": {"type": "array", "items": {"type": "string"}},
+    "rateCategories": {"type": "array", "items": {"type": "string"}},
+    "progressStages": {"type": "array", "items": {"type": "string"}},
+    "hazards": {"type": "array", "items": {"type": "string"}},
+    "materials": {"type": "array", "items": {"type": "string"}},
+    "defaultDocuments": {"type": "array", "items": {"type": "string"}},
+    "terminology": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

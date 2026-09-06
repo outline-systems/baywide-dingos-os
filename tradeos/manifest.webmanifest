@@ -1,0 +1,10 @@
+{
+  "name": "TradeOS",
+  "short_name": "TradeOS",
+  "description": "Contractor operations software for quoting, scheduling, field work, H&S, claims and invoicing.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": []
+}

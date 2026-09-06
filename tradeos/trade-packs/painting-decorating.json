@@ -1,0 +1,12 @@
+{
+  "id": "painting-decorating",
+  "name": "Painting & Decorating",
+  "description": "Starter pack informed by the Peak Paint OS reference build.",
+  "jobTypes": ["Interior repaint", "Exterior repaint", "New build painting", "Commercial painting", "Roof coating", "Maintenance painting"],
+  "rateCategories": ["Labour", "Preparation", "Interior coatings", "Exterior coatings", "Spraying", "Access / scaffold", "Materials", "Subcontractors"],
+  "progressStages": ["Site setup", "Protection / masking", "Surface preparation", "Primer / sealer", "First coats", "Finish coats", "Touch-ups / defects", "Clean-down / handover"],
+  "hazards": ["Working at height", "Scaffolds and ladders", "Spray application", "Solvents / chemicals", "Dust / sanding", "Lead paint", "Manual handling", "Public interface", "Electrical leads / tools"],
+  "materials": ["Primer / sealer", "Interior paint", "Exterior paint", "Fillers", "Sandpaper / abrasives", "Masking materials", "Drop sheets", "Solvents / cleaners"],
+  "defaultDocuments": ["Painting SWMS / JSA", "Working at height plan", "Chemical / SDS register", "Site H&S sign-on", "Daily pre-start"],
+  "terminology": {"project": "Job", "team": "Crew"}
+}
