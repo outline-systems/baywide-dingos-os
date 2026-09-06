@@ -8,5 +8,16 @@
   "hazards": ["Working at height", "Scaffolds and ladders", "Spray application", "Solvents / chemicals", "Dust / sanding", "Lead paint", "Manual handling", "Public interface", "Electrical leads / tools"],
   "materials": ["Primer / sealer", "Interior paint", "Exterior paint", "Fillers", "Sandpaper / abrasives", "Masking materials", "Drop sheets", "Solvents / cleaners"],
   "defaultDocuments": ["Painting SWMS / JSA", "Working at height plan", "Chemical / SDS register", "Site H&S sign-on", "Daily pre-start"],
+  "defaultRates": [
+    {"id":"PT-LAB-01","category":"Labour","description":"Painter","unit":"hr","rate":72},
+    {"id":"PT-LAB-02","category":"Labour","description":"Leading hand / supervisor","unit":"hr","rate":86},
+    {"id":"PT-PRP-01","category":"Preparation","description":"Standard surface preparation","unit":"m2","rate":12},
+    {"id":"PT-INT-01","category":"Interior coatings","description":"Walls — sealer + 2 finish coats","unit":"m2","rate":29},
+    {"id":"PT-INT-02","category":"Interior coatings","description":"Ceilings — 2 coat system","unit":"m2","rate":25},
+    {"id":"PT-EXT-01","category":"Exterior coatings","description":"Exterior weatherboard system","unit":"m2","rate":42},
+    {"id":"PT-SPR-01","category":"Spraying","description":"Airless spray setup / clean-down","unit":"item","rate":240},
+    {"id":"PT-ACC-01","category":"Access / scaffold","description":"Mobile scaffold allowance","unit":"day","rate":185},
+    {"id":"PT-MAT-01","category":"Materials","description":"Paint/material allowance","unit":"L","rate":18}
+  ],
   "terminology": {"project": "Job", "team": "Crew"}
 }
