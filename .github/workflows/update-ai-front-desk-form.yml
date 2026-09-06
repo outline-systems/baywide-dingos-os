@@ -1,0 +1,56 @@
+name: Update AI Front Desk form fields
+
+on:
+  push:
+    paths:
+      - '.github/workflows/update-ai-front-desk-form.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch form fields
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ai-front-desk/index.html')
+          html = path.read_text(encoding='utf-8')
+
+          old_website = '<label class="span2">Website<input required type="url" name="Website" placeholder="https://yourbusiness.com"></label>'
+          new_website = '<label class="span2">Website<input required type="text" inputmode="url" autocomplete="url" name="Website" placeholder="yourbusiness.com"></label>'
+
+          old_hours = '<label class="span2">Current hours<input required name="Current hours" placeholder="e.g. Mon–Fri 7am–5pm"></label>'
+          new_hours = '<label class="span2">Current hours<select required name="Current hours"><option value="" disabled selected>Select current hours</option><option>Monday–Friday business hours</option><option>Monday–Saturday</option><option>7 days a week</option><option>24/7</option><option>Variable / on-call hours</option><option>Seasonal hours</option><option>Other / varies</option></select></label>'
+
+          if old_website in html:
+              html = html.replace(old_website, new_website, 1)
+          elif new_website not in html:
+              raise SystemExit('Website field pattern not found')
+
+          if old_hours in html:
+              html = html.replace(old_hours, new_hours, 1)
+          elif new_hours not in html:
+              raise SystemExit('Current hours field pattern not found')
+
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit form update
+        shell: bash
+        run: |
+          git config user.name "outline-systems"
+          git config user.email "austen@outlineprojects.nz"
+          git add ai-front-desk/index.html
+          if git diff --cached --quiet; then
+            echo "No form changes required."
+          else
+            git commit -m "Make AI Front Desk demo form easier to complete"
+            git push
+          fi
