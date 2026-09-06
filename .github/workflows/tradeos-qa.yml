@@ -28,38 +28,76 @@ jobs:
           cd tradeos
           python3 -m http.server 4173 >/tmp/tradeos.log 2>&1 &
           sleep 2
-      - name: Smoke test and capture main screens
+      - name: End-to-end QA and screen capture
         run: |
           node <<'NODE'
           const { chromium } = require('playwright');
+          const assert = (ok,msg)=>{ if(!ok) throw new Error(msg); };
+          const slug=s=>s.toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
           (async()=>{
             const browser=await chromium.launch({headless:true});
-            const screens=['Dashboard','Quotes','Projects','Schedule','Field','Health & Safety','Claims','Invoices','Reports','Settings'];
-            const slug=s=>s.toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-
-            const desktop=await browser.newPage({viewport:{width:1440,height:1000}});
-            await desktop.goto('http://127.0.0.1:4173',{waitUntil:'networkidle'});
-            if(!await desktop.getByText('TradeOS',{exact:true}).count()) throw new Error('desktop: TradeOS brand missing');
+            const p=await browser.newPage({viewport:{width:1440,height:1000}});
+            await p.goto('http://127.0.0.1:4173',{waitUntil:'networkidle'});
+            assert(await p.getByText('TradeOS',{exact:true}).count(),'brand missing');
+            const screens=['Dashboard','Contacts','Quotes','Tenders','Projects','Schedule','Field','Health & Safety','Rates','Timesheets','Claims','Invoices','Reports','Settings'];
             for(const label of screens){
               if(label!=='Dashboard'){
-                const b=desktop.getByRole('button',{name:label}).first();
-                if(!await b.count()) throw new Error(`desktop: ${label} nav missing`);
-                await b.click({force:true});
-                await desktop.waitForTimeout(120);
+                const b=p.getByRole('button',{name:label}).first();
+                assert(await b.count(),`${label} nav missing`);
+                await b.click({force:true}); await p.waitForTimeout(100);
               }
-              await desktop.screenshot({path:`tradeos-desktop-${slug(label)}.png`,fullPage:true});
+              await p.screenshot({path:`tradeos-desktop-${slug(label)}.png`,fullPage:true});
             }
 
-            const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
-            await mobile.goto('http://127.0.0.1:4173',{waitUntil:'networkidle'});
+            // Field workflow: crew -> job -> clock in -> H&S -> progress -> variation -> material -> hazard -> clock out.
+            await p.getByRole('button',{name:'Field'}).first().click({force:true});
+            await p.locator('.sign-crew').first().click({force:true});
+            await p.locator('.field-job').first().click({force:true});
+            assert(await p.locator('#clockIn').count(),'clock in missing');
+            await p.locator('#clockIn').click();
+            assert(await p.locator('#hnsSign').count(),'H&S sign-on missing');
+            await p.locator('#hnsSign').click();
+            assert(await p.locator('#fieldProgress').count(),'field action hub missing');
+            await p.locator('#fieldProgress').click();
+            await p.locator('#fpPct').fill('60');
+            await p.locator('#fpNote').fill('QA progress update');
+            await p.locator('#saveProgress').click();
+            assert(await p.getByText('60% complete').count(),'progress did not persist');
+            await p.locator('#fieldVariation').click();
+            await p.locator('#fvDesc').fill('QA variation');
+            await p.locator('#fvValue').fill('250');
+            await p.locator('#saveVariation').click();
+            await p.locator('#fieldMaterial').click();
+            await p.locator('#fmItem').fill('QA aggregate');
+            await p.locator('#fmQty').fill('2 t');
+            await p.locator('#saveMaterial').click();
+            await p.locator('#fieldHazard').click();
+            await p.locator('#fhDesc').fill('QA hazard');
+            await p.locator('#saveHazard').click();
+            await p.locator('#clockOut').click();
+
+            // Claim -> invoice separation.
+            await p.getByRole('button',{name:'Claims'}).first().click({force:true});
+            await p.locator('#newClaim').click();
+            await p.locator('#saveClaim').click();
+            assert(await p.locator('.claim-invoice').count(),'claim was not created');
+            await p.locator('.claim-invoice').first().click();
+            await p.locator('#saveInvoice').click();
+            await p.getByRole('button',{name:'Invoices'}).first().click({force:true});
+            assert((await p.locator('tbody tr').count())>=1,'invoice was not created');
+
+            // Trade pack switching changes H&S content.
+            await p.getByRole('button',{name:'Settings'}).first().click({force:true});
+            const painting=p.locator('[data-pack="painting-decorating"]');
+            if(!(await painting.isChecked())) await painting.check();
+            await p.getByRole('button',{name:'Health & Safety'}).first().click({force:true});
+            assert(await p.getByText('Spray application').count(),'painting trade pack hazard missing');
+
+            const m=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
+            await m.goto('http://127.0.0.1:4173',{waitUntil:'networkidle'});
             for(const label of ['Dashboard','Field','Settings']){
-              if(label!=='Dashboard'){
-                const b=mobile.getByRole('button',{name:label}).first();
-                if(!await b.count()) throw new Error(`mobile: ${label} nav missing`);
-                await b.click({force:true});
-                await mobile.waitForTimeout(120);
-              }
-              await mobile.screenshot({path:`tradeos-mobile-${slug(label)}.png`,fullPage:true});
+              if(label!=='Dashboard'){await m.getByRole('button',{name:label}).first().click({force:true});await m.waitForTimeout(80);}
+              await m.screenshot({path:`tradeos-mobile-${slug(label)}.png`,fullPage:true});
             }
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
