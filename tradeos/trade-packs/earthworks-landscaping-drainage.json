@@ -8,5 +8,17 @@
   "hazards": ["Excavation collapse", "Underground services", "Mobile plant", "Reversing vehicles", "Public interface", "Manual handling", "Noise", "Dust / silica", "Wet ground", "Working near services"],
   "materials": ["Draincoil", "PVC pipe", "AP40", "GAP20", "Topsoil", "Mulch", "Geotextile", "Concrete", "Timber / retaining materials"],
   "defaultDocuments": ["Excavation SWMS / JSA", "Plant pre-start", "Underground services check", "Site H&S sign-on", "Daily pre-start"],
+  "defaultRates": [
+    {"id":"EW-LAB-01","category":"Labour","description":"General labour","unit":"hr","rate":68},
+    {"id":"EW-LAB-02","category":"Labour","description":"Skilled operator","unit":"hr","rate":82},
+    {"id":"EW-PLT-01","category":"Plant","description":"1.7T excavator with operator","unit":"hr","rate":125},
+    {"id":"EW-PLT-02","category":"Plant","description":"5T excavator with operator","unit":"hr","rate":165},
+    {"id":"EW-PLT-03","category":"Plant","description":"Posi-track with operator","unit":"hr","rate":155},
+    {"id":"EW-CAR-01","category":"Cartage","description":"Truck and cartage","unit":"hr","rate":145},
+    {"id":"EW-AGG-01","category":"Aggregates","description":"AP40 supply and place","unit":"t","rate":92},
+    {"id":"EW-DRN-01","category":"Drainage","description":"Drainage installation labour","unit":"hr","rate":78},
+    {"id":"EW-LND-01","category":"Landscaping","description":"Topsoil spread and trim","unit":"m3","rate":48},
+    {"id":"EW-DSP-01","category":"Disposal","description":"Clean fill disposal allowance","unit":"m3","rate":38}
+  ],
   "terminology": {"project": "Job", "team": "Crew"}
 }
