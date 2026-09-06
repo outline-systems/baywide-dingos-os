@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
+  <title id="title">AI Front Desk logo</title>
+  <desc id="desc">White AI phone mark with blue signal arcs and AI Front Desk wordmark on black.</desc>
+  <rect width="1200" height="1200" fill="#000"/>
+  <g transform="translate(250 205)">
+    <path d="M160 390 L315 70 Q335 30 370 70 L520 390 H430 L390 305 H275 L235 390 Z" fill="#fff"/>
+    <path d="M286 180 C270 215 280 262 316 300 C351 337 399 352 432 337 C449 329 460 316 466 301 L418 254 C403 267 391 266 375 257 C360 248 340 227 332 210 C324 194 325 182 337 169 L301 137 C295 144 290 158 286 180 Z" fill="#000"/>
+    <rect x="505" y="120" width="58" height="270" rx="12" fill="#fff"/>
+    <path d="M563 70 A105 105 0 0 1 668 175" fill="none" stroke="#147BFF" stroke-width="32" stroke-linecap="round"/>
+    <path d="M563 120 A55 55 0 0 1 618 175" fill="none" stroke="#147BFF" stroke-width="32" stroke-linecap="round"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="600" y="790" font-size="150" fill="#fff"><tspan fill="#147BFF">AI</tspan><tspan> Front Desk</tspan></text>
+  </g>
+</svg>
