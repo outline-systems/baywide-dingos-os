@@ -1,0 +1,172 @@
+name: Compare live Peak and Baywide
+
+on:
+  push:
+    branches: [live-app-compare-20260907]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Compare live apps
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          fs.mkdirSync('compare-output/screens', {recursive:true});
+          const clean = s => (s||'').replace(/\s+/g,' ').trim();
+          const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+          const targets = [
+            ['dashboard', /Dashboard|Management|HQ/i],
+            ['settings', /Settings/i],
+            ['quotes', /Quotes?/i],
+            ['tendering', /Tender/i],
+            ['projects', /Projects?/i],
+            ['schedule', /Schedule/i],
+            ['health-safety', /Health\s*&\s*Safety|H&S/i],
+            ['timesheets', /Timesheets?/i],
+            ['reports', /Reports?/i],
+            ['invoicing', /Invoic/i]
+          ];
+
+          async function snapshot(page, app, name){
+            await page.waitForTimeout(700);
+            const body = clean(await page.locator('body').innerText().catch(()=>''));
+            const buttons = (await page.locator('button').allTextContents().catch(()=>[])).map(clean).filter(Boolean);
+            const links = (await page.locator('a').allTextContents().catch(()=>[])).map(clean).filter(Boolean);
+            const inputs = await page.locator('input,textarea,select').evaluateAll(els=>els.map(e=>({tag:e.tagName,type:e.type||'',name:e.name||'',placeholder:e.placeholder||'',aria:e.getAttribute('aria-label')||''}))).catch(()=>[]);
+            await page.screenshot({path:`compare-output/screens/${app}-${name}.png`,fullPage:true});
+            return {name, body, buttons, links, inputs, url:page.url()};
+          }
+
+          async function clickText(page, re){
+            const candidates = [
+              page.getByRole('button',{name:re}),
+              page.getByRole('link',{name:re}),
+              page.locator('button,a,[role="button"]').filter({hasText:re})
+            ];
+            for(const c of candidates){
+              const n = await c.count().catch(()=>0);
+              if(n){
+                try{ await c.first().click({force:true}); await page.waitForTimeout(650); return true; }catch(e){}
+              }
+            }
+            return false;
+          }
+
+          async function enterHQ(page){
+            const mgmt = [
+              page.getByRole('button',{name:/Management|HQ|Office/i}),
+              page.locator('button[title*="Management" i],button[title*="HQ" i]')
+            ];
+            for(const c of mgmt){
+              if(await c.count().catch(()=>0)){
+                try{await c.first().click({force:true}); await page.waitForTimeout(900); return true;}catch(e){}
+              }
+            }
+            return false;
+          }
+
+          async function inspectApp(browser, app, url){
+            const page = await browser.newPage({viewport:{width:1440,height:1100}});
+            const out = {app,url,screens:{},errors:[]};
+            try{
+              await page.goto(url,{waitUntil:'networkidle',timeout:60000});
+              await page.waitForTimeout(1600);
+              out.screens.welcome = await snapshot(page,app,'welcome');
+              await enterHQ(page);
+              out.screens.dashboard = await snapshot(page,app,'dashboard');
+              for(const [name,re] of targets.slice(1)){
+                const ok = await clickText(page,re);
+                if(ok) out.screens[name] = await snapshot(page,app,name);
+                else out.errors.push(`Missing nav target: ${name}`);
+              }
+              // Return to root and inspect Field entry + signed-out state only (no data mutation).
+              await page.goto(url,{waitUntil:'networkidle',timeout:60000});
+              await page.waitForTimeout(1100);
+              let field = page.locator('button[title="Field app"],button[title*="Field" i]');
+              if(await field.count().catch(()=>0)){
+                await field.first().click({force:true}); await page.waitForTimeout(800);
+              } else {
+                await clickText(page,/^Field$|Field app/i);
+              }
+              out.screens.field = await snapshot(page,app,'field');
+            }catch(e){out.errors.push(String(e.stack||e));}
+            await page.close();
+            return out;
+          }
+
+          function tokenSet(s){
+            return new Set((s||'').toLowerCase().match(/[a-z][a-z0-9&'/-]{2,}/g)||[]);
+          }
+          function diffWords(a,b){
+            const A=tokenSet(a),B=tokenSet(b);
+            return {onlyA:[...A].filter(x=>!B.has(x)).sort(), onlyB:[...B].filter(x=>!A.has(x)).sort()};
+          }
+          function keywordHits(text){
+            const keys = [
+              'progress claim','tax invoice','technical spec','paint spec','tender h&s policy','h&s policy','health & safety','google calendar','crew photo','profile photo','planned labour','field','my jobs','clock in','clock on','progress report','variation','materials','daily tasks','rate library','company details','logo','save company','export claim pdf','technical specification','methodology','earthworks','landscaping','drainage','painting','coating','colour schedule','crew','schedule'
+            ];
+            const t=(text||'').toLowerCase();
+            return Object.fromEntries(keys.map(k=>[k,(t.match(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length]));
+          }
+
+          (async()=>{
+            const browser = await chromium.launch({headless:true});
+            const bay = await inspectApp(browser,'baywide','https://outline-systems.github.io/baywide-dingos-os/');
+            const peak = await inspectApp(browser,'peak','https://outline-systems.github.io/peak-paint-os/');
+            await browser.close();
+
+            const names = [...new Set([...Object.keys(bay.screens),...Object.keys(peak.screens)])];
+            const comparison = {};
+            for(const name of names){
+              const b=bay.screens[name]||{}, p=peak.screens[name]||{};
+              comparison[name]={
+                baywideBody:b.body||'', peakBody:p.body||'',
+                wordDiff:diffWords(b.body||'',p.body||''),
+                baywideKeywords:keywordHits(b.body||''), peakKeywords:keywordHits(p.body||''),
+                baywideButtons:b.buttons||[], peakButtons:p.buttons||[],
+                baywideInputs:b.inputs||[], peakInputs:p.inputs||[]
+              };
+            }
+            const report={generatedAt:new Date().toISOString(),baywide:bay,peak,comparison};
+            fs.writeFileSync('compare-output/report.json',JSON.stringify(report,null,2));
+
+            console.log('=== LIVE APP COMPARISON SUMMARY ===');
+            console.log('Baywide errors:',bay.errors);
+            console.log('Peak errors:',peak.errors);
+            for(const name of names){
+              const c=comparison[name];
+              console.log(`\n--- ${name.toUpperCase()} ---`);
+              console.log('BAYWIDE:',(c.baywideBody||'').slice(0,4500));
+              console.log('PEAK:',(c.peakBody||'').slice(0,4500));
+              console.log('BAYWIDE_BUTTONS:',JSON.stringify(c.baywideButtons));
+              console.log('PEAK_BUTTONS:',JSON.stringify(c.peakButtons));
+              console.log('ONLY_BAYWIDE_WORDS:',c.wordDiff.onlyA.slice(0,120).join(', '));
+              console.log('ONLY_PEAK_WORDS:',c.wordDiff.onlyB.slice(0,120).join(', '));
+              console.log('BAYWIDE_KEYWORDS:',JSON.stringify(c.baywideKeywords));
+              console.log('PEAK_KEYWORDS:',JSON.stringify(c.peakKeywords));
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload comparison artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: peak-vs-baywide-live-comparison
+          path: compare-output
+          if-no-files-found: error
