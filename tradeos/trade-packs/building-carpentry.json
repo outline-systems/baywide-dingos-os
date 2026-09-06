@@ -8,5 +8,16 @@
   "hazards": ["Working at height", "Power tools", "Temporary works", "Manual handling", "Silica / dust", "Noise", "Falling objects", "Scaffolds / ladders", "Public interface", "Site housekeeping"],
   "materials": ["Structural timber", "LVL / engineered timber", "Sheet materials", "Cladding", "Fixings", "Hardware", "Insulation", "Linings", "Sealants"],
   "defaultDocuments": ["Carpentry SWMS / JSA", "Working at height plan", "Tool / equipment pre-start", "Site H&S sign-on", "Daily pre-start"],
+  "defaultRates": [
+    {"id":"BD-LAB-01","category":"Labour","description":"Carpenter","unit":"hr","rate":82},
+    {"id":"BD-LAB-02","category":"Labour","description":"Leading hand / foreman","unit":"hr","rate":98},
+    {"id":"BD-LAB-03","category":"Labour","description":"Apprentice / labourer","unit":"hr","rate":58},
+    {"id":"BD-PRE-01","category":"Preliminaries","description":"Site setup / mobilisation","unit":"item","rate":450},
+    {"id":"BD-FRM-01","category":"Framing","description":"Wall framing labour","unit":"m2","rate":46},
+    {"id":"BD-CLD-01","category":"Cladding","description":"Standard cladding installation labour","unit":"m2","rate":72},
+    {"id":"BD-LIN-01","category":"Linings","description":"Plasterboard fixing labour","unit":"m2","rate":28},
+    {"id":"BD-DCK-01","category":"Decking","description":"Decking installation labour","unit":"m2","rate":115},
+    {"id":"BD-MAT-01","category":"Materials","description":"General consumables allowance","unit":"item","rate":180}
+  ],
   "terminology": {"project": "Job", "team": "Crew"}
 }
