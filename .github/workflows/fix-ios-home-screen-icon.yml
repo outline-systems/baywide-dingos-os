@@ -1,0 +1,56 @@
+name: Fix iOS home screen icon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-ios-home-screen-icon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-icon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Baywide home screen icon and fix project-relative paths
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import base64, json
+
+          icon_b64 = '''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'''
+          Path('apple-touch-icon.png').write_bytes(base64.b64decode(icon_b64))
+          manifest = {
+              'name': 'Baywide Dingos OS',
+              'short_name': 'Baywide Dingos',
+              'start_url': './',
+              'scope': './',
+              'display': 'standalone',
+              'background_color': '#0C0D0F',
+              'theme_color': '#0C0D0F',
+              'icons': [{'src':'./apple-touch-icon.png','sizes':'180x180','type':'image/png','purpose':'any maskable'}]
+          }
+          Path('manifest.webmanifest').write_text(json.dumps(manifest, separators=(',',':')))
+          Path('sw.js').write_text("self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));")
+
+          p = Path('index.html')
+          text = p.read_text()
+          text = text.replace('href="/manifest.webmanifest"','href="./manifest.webmanifest"')
+          text = text.replace('href="/apple-touch-icon.png"','href="./apple-touch-icon.png"')
+          text = text.replace('navigator.serviceWorker.register("/sw.js")','navigator.serviceWorker.register("./sw.js")')
+          p.write_text(text)
+          PY
+      - name: Commit and publish
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html apple-touch-icon.png manifest.webmanifest sw.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Fix Baywide iOS home screen icon"
+            git push
+          fi
