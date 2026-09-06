@@ -50,4 +50,5 @@ function bind(){
 
 function render(){const views={dashboard,quotes,projects,schedule,field,health,claims,invoices,reports,settings};shell(views[route]());bind()}
 
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));}
 loadPacks().then(render).catch(err=>{console.error(err);app.innerHTML='<div class="main"><div class="notice">TradeOS failed to load trade packs.</div></div>'});
