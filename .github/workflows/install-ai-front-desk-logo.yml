@@ -1,0 +1,34 @@
+name: Install AI Front Desk logo
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-ai-front-desk-logo.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Rebuild approved PNG
+        shell: bash
+        run: |
+          cat .afd-icon/part00 .afd-icon/part01 .afd-icon/part02 .afd-icon/part03 | base64 -d > ai-front-desk/apple-touch-icon.png
+          echo '963b616c2c29263a0eaa498eb1f3329274d1651613494f43313f835f009e2a79  ai-front-desk/apple-touch-icon.png' | sha256sum -c -
+          cp ai-front-desk/apple-touch-icon.png ai-front-desk/logo.png
+
+      - name: Commit logo and clean staging files
+        shell: bash
+        run: |
+          rm -rf .afd-icon
+          rm -f .github/workflows/install-ai-front-desk-logo.yml
+          git config user.name "outline-systems"
+          git config user.email "austen@outlineprojects.nz"
+          git add -A
+          git commit -m "Add approved AI Front Desk logo and Home Screen icon"
+          git push
