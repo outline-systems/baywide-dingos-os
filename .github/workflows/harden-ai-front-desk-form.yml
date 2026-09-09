@@ -1,0 +1,48 @@
+name: Harden AI Front Desk lead form
+
+on:
+  push:
+    paths:
+      - '.github/workflows/harden-ai-front-desk-form.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Harden form redirect and fallback
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ai-front-desk/index.html')
+          html = path.read_text(encoding='utf-8')
+
+          html = html.replace(
+              '<input type="hidden" name="_next" id="next"><input type="hidden" name="_url" id="source">',
+              '<input type="hidden" name="_next" id="next" value="https://outline-systems.github.io/baywide-dingos-os/ai-front-desk/thanks.html"><input type="hidden" name="_url" id="source" value="https://outline-systems.github.io/baywide-dingos-os/ai-front-desk/">',
+              1
+          )
+
+          old_note = '<p class="privacy-note">By submitting, you agree that we may contact you about your demo request. See our <a href="privacy.html">Privacy Policy</a>.</p>'
+          new_note = '<p class="privacy-note">By submitting, you agree that we may contact you about your demo request. See our <a href="privacy.html">Privacy Policy</a>.<br>If the form does not complete, email <a href="mailto:austen@outlineprojects.nz?subject=AI%20Front%20Desk%20Demo%20Request">austen@outlineprojects.nz</a>.</p>'
+          if old_note in html:
+              html = html.replace(old_note, new_note, 1)
+
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit fix and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ai-front-desk/index.html
+          git rm .github/workflows/harden-ai-front-desk-form.yml
+          git commit -m "Harden AI Front Desk form redirect and fallback"
+          git push
